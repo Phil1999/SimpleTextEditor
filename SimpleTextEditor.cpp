@@ -1,197 +1,187 @@
+// SimpleTextEditor.cpp
+//
+// Implements the SimpleTextEditor class which provides basic text editing
+// functionality including file operations and text manipulation.
+
 #include "SimpleTextEditor.h"
 #include <QSaveFile>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <qevent.h>
-#include <qtextstream.h>
+#include <QTextStream>
 
 SimpleTextEditor::SimpleTextEditor(QWidget* parent)
-    : QMainWindow(parent), isUntitled(true), isModified(false)
-{
+    : QMainWindow(parent), is_untitled_(true), is_modified_(false) {
+
     ui.setupUi(this);
-    setupLayout();
-    createActions();
-    createMenus();
+    SetupLayout();
+    CreateActions();
+    CreateMenus();
 
     // Connect textChanged signal to keep track of modifications.
-    connect(textEdit, &QTextEdit::textChanged, this, &SimpleTextEditor::documentWasModified);
+    connect(text_edit_, &QTextEdit::textChanged, this, &SimpleTextEditor::DocumentWasModified);
 
-    setCurrentFile("");
+    SetCurrentFile("");
 }
 
 SimpleTextEditor::~SimpleTextEditor() = default;
 
-void SimpleTextEditor::setupLayout()
-{
-    QWidget* centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
+void SimpleTextEditor::SetupLayout() {
 
-    layout = new QVBoxLayout(centralWidget);
-    textEdit = new QTextEdit(this);
+    QWidget* central_widget = new QWidget(this);
+    setCentralWidget(central_widget);
 
-    layout->addWidget(textEdit);
+    layout_ = new QVBoxLayout(central_widget);
+    text_edit_ = new QTextEdit(this);
 
+    layout_->addWidget(text_edit_);
 }
 
-void SimpleTextEditor::createActions()
-{
-    newAct = new QAction(tr("New"), this);
-    newAct->setShortcuts(QKeySequence::New);
-    connect(newAct, &QAction::triggered, this, &SimpleTextEditor::newFile);
+void SimpleTextEditor::CreateActions() {
 
-    openAct = new QAction(tr("Open File..."), this);
-    openAct->setShortcuts(QKeySequence::Open);
-    connect(openAct, &QAction::triggered, this, &SimpleTextEditor::openFile);
+    new_act_ = new QAction(tr("New"), this);
+    new_act_->setShortcuts(QKeySequence::New);
+    connect(new_act_, &QAction::triggered, this, &SimpleTextEditor::NewFile);
 
-    saveAct = new QAction(tr("Save"), this);
-    saveAct->setShortcuts(QKeySequence::Save);
-    connect(saveAct, &QAction::triggered, this, &SimpleTextEditor::saveFile);
+    open_act_ = new QAction(tr("Open File..."), this);
+    open_act_->setShortcuts(QKeySequence::Open);
+    connect(open_act_, &QAction::triggered, this, &SimpleTextEditor::OpenFile);
 
-    saveAsAct = new QAction(tr("Save As..."), this);
-    saveAsAct->setShortcuts(QKeySequence::SaveAs);
-    connect(saveAsAct, &QAction::triggered, this, &SimpleTextEditor::saveFileAs);
+    save_act_ = new QAction(tr("Save"), this);
+    save_act_->setShortcuts(QKeySequence::Save);
+    connect(save_act_, &QAction::triggered, this, &SimpleTextEditor::SaveFile);
 
-    exitAct = new QAction(tr("Exit"), this);
-    exitAct->setShortcuts(QKeySequence::Quit);
-    connect(exitAct, &QAction::triggered, this, &QWidget::close);
+    save_as_act_ = new QAction(tr("Save As..."), this);
+    save_as_act_->setShortcuts(QKeySequence::SaveAs);
+    connect(save_as_act_, &QAction::triggered, this, &SimpleTextEditor::SaveFileAs);
 
-    copyAct = new QAction(tr("Copy"), this);
-    copyAct->setShortcuts(QKeySequence::Copy);
-    connect(copyAct, &QAction::triggered, this, &SimpleTextEditor::copyText);
+    exit_act_ = new QAction(tr("Exit"), this);
+    exit_act_->setShortcuts(QKeySequence::Quit);
+    connect(exit_act_, &QAction::triggered, this, &QWidget::close);
 
-    cutAct = new QAction(tr("Cut"), this);
-    cutAct->setShortcuts(QKeySequence::Cut);
-    connect(cutAct, &QAction::triggered, this, &SimpleTextEditor::cutText);
+    copy_act_ = new QAction(tr("Copy"), this);
+    copy_act_->setShortcuts(QKeySequence::Copy);
+    connect(copy_act_, &QAction::triggered, this, &SimpleTextEditor::CopyText);
 
-    pasteAct = new QAction(tr("Paste"), this);
-    pasteAct->setShortcuts(QKeySequence::Paste);
-    connect(pasteAct, &QAction::triggered, this, &SimpleTextEditor::pasteText);
+    cut_act_ = new QAction(tr("Cut"), this);
+    cut_act_->setShortcuts(QKeySequence::Cut);
+    connect(cut_act_, &QAction::triggered, this, &SimpleTextEditor::CutText);
+
+    paste_act_ = new QAction(tr("Paste"), this);
+    paste_act_->setShortcuts(QKeySequence::Paste);
+    connect(paste_act_, &QAction::triggered, this, &SimpleTextEditor::PasteText);
 }
 
-void SimpleTextEditor::createMenus()
-{
-    fileMenu = menuBar()->addMenu(tr("&File"));
-    fileMenu->addAction(newAct);
-    fileMenu->addAction(openAct);
-    fileMenu->addAction(saveAct);
-    fileMenu->addAction(saveAsAct);
-    fileMenu->addSeparator();
-    fileMenu->addAction(exitAct);
+void SimpleTextEditor::CreateMenus() {
 
-    editMenu = menuBar()->addMenu(tr("&Edit"));
-    editMenu->addAction(copyAct);
-    editMenu->addAction(cutAct);
-    editMenu->addAction(pasteAct);
+    // File Menu
+    file_menu_ = menuBar()->addMenu(tr("&File"));
+    file_menu_->addAction(new_act_);
+    file_menu_->addAction(open_act_);
+    file_menu_->addAction(save_act_);
+    file_menu_->addAction(save_as_act_);
+    file_menu_->addSeparator();
+    file_menu_->addAction(exit_act_);
+
+    // Edit Menu
+    edit_menu_ = menuBar()->addMenu(tr("&Edit"));
+    edit_menu_->addAction(copy_act_);
+    edit_menu_->addAction(cut_act_);
+    edit_menu_->addAction(paste_act_);
 }
 
-void SimpleTextEditor::newFile()
-{
-    if (maybeSave()) {
-        textEdit->clear();
-        setCurrentFile("");
+void SimpleTextEditor::NewFile() {
+
+    if (MaybeSave()) {
+        text_edit_->clear();
+        SetCurrentFile("");
     }
-
 }
 
-void SimpleTextEditor::openFile()
-{
-    if (maybeSave()) {
-        QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), QString(),
+void SimpleTextEditor::OpenFile() {
+
+    if (MaybeSave()) {
+        QString file_name = QFileDialog::getOpenFileName(this, tr("Open File"), QString(),
             tr("Text Files (*.txt);;All Files (*)"));
 
-        if (!fileName.isEmpty())
-        {
-            openFromFile(fileName);
+        if (!file_name.isEmpty()) {
+            OpenFromFile(file_name);
         }
     }
 }
 
-bool SimpleTextEditor::openFromFile(const QString& fileName)
-{
+bool SimpleTextEditor::OpenFromFile(const QString& file_name) {
 
-    QFile file(fileName);
+    QFile file(file_name);
 
-    if (!file.open(QFile::ReadOnly | QFile::Text))
-    {
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+
         QMessageBox::warning(this, tr("SimpleTextEditor"),
-            tr("Cannot read file %1: \n%2.")
-            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
-
+            tr("Cannot read file %1:\n%2.")
+            .arg(QDir::toNativeSeparators(file_name), file.errorString()));
         return false;
-
     }
 
     QTextStream in(&file);
     in.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
-    textEdit->setPlainText(in.readAll());
+    text_edit_->setPlainText(in.readAll());
 
-    setCurrentFile(fileName);
+    SetCurrentFile(file_name);
     return true;
 }
 
-bool SimpleTextEditor::saveFile()
-{
-    if (isUntitled)
-    {
-        // No current file; so behave like "Save as"
-        return saveFileAs();
+bool SimpleTextEditor::SaveFile() {
+
+    // If its a fresh file function like "save as"
+    if (is_untitled_) {
+        return SaveFileAs();
     }
-    else
-    {
-        // Save to current file without changing currentFile (since we didn't switch files)
-        return saveToFile(currentFile);
+    else {
+        return SaveToFile(current_file_);
     }
 }
 
-bool SimpleTextEditor::saveFileAs()
-{
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"), QString(),
+bool SimpleTextEditor::SaveFileAs() {
+
+    QString file_name = QFileDialog::getSaveFileName(this, tr("Save As"), QString(),
         tr("Text Files (*.txt);;All Files (*)"));
 
-    // User didn't give a filename.
-    if (fileName.isEmpty())
-    {
+    if (file_name.isEmpty()) {
         return false;
     }
 
-    return saveToFile(fileName);
+    return SaveToFile(file_name);
 }
 
-bool SimpleTextEditor::saveToFile(const QString& fileName)
-{
-    QSaveFile file(fileName);
-    if (!file.open(QFile::WriteOnly | QFile::Text))
-    {
-        QMessageBox::warning(this, tr("SimpleTextEditor"),
-            tr("Cannot write file %1: \n%2.")
-            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+bool SimpleTextEditor::SaveToFile(const QString& file_name) {
 
+    QSaveFile file(file_name);
+
+    if (!file.open(QFile::WriteOnly | QFile::Text)) {
+        QMessageBox::warning(this, tr("SimpleTextEditor"),
+            tr("Cannot write file %1:\n%2.")
+            .arg(QDir::toNativeSeparators(file_name), file.errorString()));
         return false;
     }
 
     QTextStream out(&file);
     out.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
-    out << textEdit->toPlainText();
+    out << text_edit_->toPlainText();
 
-    if (!file.commit())
-    {
+    if (!file.commit()) {
         QMessageBox::warning(this, tr("SimpleTextEditor"),
             tr("Cannot write file %1:\n%2.")
-            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+            .arg(QDir::toNativeSeparators(file_name), file.errorString()));
         return false;
     }
 
-    // We have recognized a valid file and can write to it without problems.
-    setCurrentFile(fileName);
+    SetCurrentFile(file_name);
     statusBar()->showMessage(tr("File saved"), 5000);
-
     return true;
-
 }
 
-void SimpleTextEditor::closeEvent(QCloseEvent* event)
-{
-    if (maybeSave()) {
+void SimpleTextEditor::closeEvent(QCloseEvent* event) {
+    if (MaybeSave()) {
         event->accept();
     }
     else {
@@ -199,26 +189,24 @@ void SimpleTextEditor::closeEvent(QCloseEvent* event)
     }
 }
 
-void SimpleTextEditor::documentWasModified()
-{
-    isModified = true;
+void SimpleTextEditor::DocumentWasModified() {
+    is_modified_ = true;
     setWindowModified(true);
 }
 
-bool SimpleTextEditor::maybeSave()
-{
-    if (!isModified) return true;
+bool SimpleTextEditor::MaybeSave() {
+    if (!is_modified_) return true;
 
-    const QMessageBox::StandardButton ret = 
+    const QMessageBox::StandardButton ret =
         QMessageBox::warning(this, tr("SimpleTextEditor"),
-        tr("The document has been modified. \n"
-            "Do you want to save your changes?"),
-        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+            tr("The document has been modified.\n"
+                "Do you want to save your changes?"),
+            QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
 
     switch (ret) {
 
     case QMessageBox::Save:
-        return saveFile();
+        return SaveFile();
     case QMessageBox::Cancel:
         return false;
     default:
@@ -228,26 +216,22 @@ bool SimpleTextEditor::maybeSave()
     return true;
 }
 
-void SimpleTextEditor::setCurrentFile(const QString& fileName)
-{
-    currentFile = fileName;
-    isUntitled = fileName.isEmpty();
-    isModified = false;
+void SimpleTextEditor::SetCurrentFile(const QString& file_name) {
+    current_file_ = file_name;
+    is_untitled_ = file_name.isEmpty();
+    is_modified_ = false;
     setWindowModified(false);
-    setWindowTitle(tr("%1[*] - %2").arg(isUntitled ? "untitled" : QFileInfo(currentFile).fileName(), tr("SimpleTextEditor")));
+    setWindowTitle(tr("%1[*] - %2").arg(is_untitled_ ? "untitled" : QFileInfo(current_file_).fileName(), tr("SimpleTextEditor")));
 }
 
-void SimpleTextEditor::copyText()
-{
-    textEdit->copy();
+void SimpleTextEditor::CopyText() {
+    text_edit_->copy();
 }
 
-void SimpleTextEditor::cutText()
-{
-    textEdit->cut();
+void SimpleTextEditor::CutText() {
+    text_edit_->cut();
 }
 
-void SimpleTextEditor::pasteText()
-{
-    textEdit->paste();
+void SimpleTextEditor::PasteText() {
+    text_edit_->paste();
 }
