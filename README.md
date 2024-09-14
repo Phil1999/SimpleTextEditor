@@ -5,7 +5,7 @@ A lightweight, Qt-based text editor with basic file operations and a clean inter
 ## Features
 
 - Create, open, and save text files
-- Basic text editing operations (cut, copy, paste)
+- Basic text editing operations (cut, copy, paste, undo/redo, select all, delete selected)
 - Unsaved changes detection
 - Cross-platform compatibility (thanks to Qt)
 
@@ -57,7 +57,7 @@ This project will likely stay simple for awhile, but I will come back to it from
 - [ ] Customizable themes (light/dark mode)
 - [ ] Undo/Redo functionality
 - [ ] Code folding for programming languages
-- [ ] Split-view editing
+- [ ] Split-view editing (tabs)
 - [ ] Auto-completion and code snippets
 - [ ] File comparison tool
 
