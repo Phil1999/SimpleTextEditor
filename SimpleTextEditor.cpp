@@ -1,11 +1,7 @@
-#include <qtextedit.h>
-#include <qmenu.h>
-#include <qsavefile.h>
-#include <qmessagebox.h>
-#include <qaction.h>
-#include <qboxlayout.h>
-#include <qfiledialog.h>
 #include "SimpleTextEditor.h"
+#include <QSaveFile>
+#include <QMessageBox>
+#include <QFileDialog>
 
 SimpleTextEditor::SimpleTextEditor(QWidget* parent)
     : QMainWindow(parent)
@@ -17,8 +13,8 @@ SimpleTextEditor::SimpleTextEditor(QWidget* parent)
 }
 
 SimpleTextEditor::~SimpleTextEditor()
-{}
-
+{
+}
 
 void SimpleTextEditor::setupLayout()
 {
@@ -35,9 +31,7 @@ void SimpleTextEditor::setupLayout()
 
 void SimpleTextEditor::createActions()
 {
-    // Create "alt" shortcut with &
     newAct = new QAction(tr("New"), this);
-    // Set a global shortcut
     newAct->setShortcuts(QKeySequence::New);
     connect(newAct, &QAction::triggered, this, &SimpleTextEditor::newFile);
 
@@ -48,7 +42,6 @@ void SimpleTextEditor::createActions()
     saveAct = new QAction(tr("Save"), this);
     saveAct->setShortcuts(QKeySequence::Save);
     connect(saveAct, &QAction::triggered, this, &SimpleTextEditor::saveFile);
-
 
     saveAsAct = new QAction(tr("Save As..."), this);
     saveAsAct->setShortcuts(QKeySequence::SaveAs);
@@ -69,12 +62,10 @@ void SimpleTextEditor::createActions()
     pasteAct = new QAction(tr("Paste"), this);
     pasteAct->setShortcuts(QKeySequence::Paste);
     connect(pasteAct, &QAction::triggered, this, &SimpleTextEditor::pasteText);
-
 }
 
 void SimpleTextEditor::createMenus()
 {
-    // Add Menu
     fileMenu = menuBar()->addMenu(tr("&File"));
     fileMenu->addAction(newAct);
     fileMenu->addAction(openAct);
@@ -83,68 +74,101 @@ void SimpleTextEditor::createMenus()
     fileMenu->addSeparator();
     fileMenu->addAction(exitAct);
 
-    // Edit Menu
     editMenu = menuBar()->addMenu(tr("&Edit"));
     editMenu->addAction(copyAct);
     editMenu->addAction(cutAct);
     editMenu->addAction(pasteAct);
 }
 
-// TODO currently just clears the file, but ideally it should open in a new tab.
 void SimpleTextEditor::newFile()
 {
     textEdit->clear();
+    currentFile.clear();
 }
 
 void SimpleTextEditor::openFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this);
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), QString(),
+        tr("Text Files (*.txt);;All Files (*)"));
 
-    if (!fileName.isEmpty()) {
-        QFile file(fileName);
+    if (!fileName.isEmpty())
+    {
+        openFromFile(fileName);
+    }
+}
 
-        // Make sure we have a valid text file.
-        if (file.exists() && file.open(QFile::ReadOnly | QFile::Text)) {
-            textEdit->setPlainText(file.readAll());
-            currentFile = fileName;
-        }
+void SimpleTextEditor::openFromFile(const QString& fileName)
+{
+    if (!QFile::exists(fileName)) {
+        return;
+    }
 
+    QFile file(fileName);
+
+    if (file.open(QFile::ReadOnly | QFile::Text))
+    {
+        QTextStream in(&file);
+        in.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
+        textEdit->setPlainText(in.readAll());
+        currentFile = fileName;
+    }
+    else
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to open the file."));
     }
 }
 
 void SimpleTextEditor::saveFile()
 {
-
-    // If there is no file opened, function like "save as".
-    if (currentFile.isEmpty()) {
-        currentFile = QFileDialog::getSaveFileName(this);
-        if (currentFile.isEmpty())
-            return;
+    if (currentFile.isEmpty())
+    {
+        // No current file; so behave like "Save as"
+        saveFileAs();
     }
-
-    QSaveFile file(currentFile);
-    if (file.open(QFile::WriteOnly | QFile::Text)) {
-        QTextStream out(&file);
-        out << textEdit->toPlainText();
-        
-        // Save the file with changes.
-        if (!file.commit()) {
-            QMessageBox::critical(this, tr("Error"), tr("Failed to save the file."));
-        }
-
+    else
+    {
+        // Save to current file without changing currentFile (since we didn't switch files)
+        saveToFile(currentFile);
     }
-    
 }
 
 void SimpleTextEditor::saveFileAs()
 {
-    QString fileName = QFileDialog::getSaveFileName(this);
-    if (!fileName.isEmpty()) {
+    QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"), QString(),
+        tr("Text Files (*.txt);;All Files (*)"));
+
+    if (!fileName.isEmpty())
+    {
         currentFile = fileName;
-        saveFile();
+        saveToFile(fileName);
+
     }
 }
 
+void SimpleTextEditor::saveToFile(const QString& fileName)
+{
+
+    if (!QFile::exists(fileName)) {
+        return;
+    }
+
+    QSaveFile file(fileName);
+    if (file.open(QFile::WriteOnly | QFile::Text))
+    {
+        QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
+        out << textEdit->toPlainText();
+
+        if (!file.commit())
+        {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to save the file."));
+        }
+    }
+    else
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Failed to open the file for writing."));
+    }
+}
 
 void SimpleTextEditor::copyText()
 {

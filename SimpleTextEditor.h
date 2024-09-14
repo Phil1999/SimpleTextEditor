@@ -1,10 +1,10 @@
 #pragma once
 
 #include <QtWidgets/QMainWindow>
-#include <qtextedit.h>
-#include <qmenu.h>
-#include <qaction.h>
-#include <qboxlayout.h>
+#include <QTextEdit>
+#include <QMenu>
+#include <QAction>
+#include <QVBoxLayout>
 #include "ui_SimpleTextEditor.h"
 
 class SimpleTextEditor : public QMainWindow
@@ -12,14 +12,24 @@ class SimpleTextEditor : public QMainWindow
     Q_OBJECT
 
 public:
-    SimpleTextEditor(QWidget *parent = nullptr);
+    SimpleTextEditor(QWidget* parent = nullptr);
     ~SimpleTextEditor();
 
-private slots:
     void newFile();
-    void openFile();
-    void saveFile();
-    void saveFileAs();
+
+    // Core functionality methods (business logic)
+    void saveToFile(const QString& fileName);
+    void openFromFile(const QString& fileName);
+
+    // Getter for textEdit (for testing purposes)
+    QTextEdit* getTextEdit() const { return textEdit; }
+
+public slots:
+    // Slots for UI interactions
+    void openFile();       // Opens file dialog and calls openFromFile
+    void saveFile();       // Saves to current file or opens save dialog
+    void saveFileAs();     // Opens save dialog and calls saveToFile
+
     void copyText();
     void cutText();
     void pasteText();
@@ -37,7 +47,6 @@ private:
     QMenu* fileMenu;
     QMenu* editMenu;
 
-
     QAction* newAct;
     QAction* openAct;
     QAction* saveAct;
@@ -47,7 +56,5 @@ private:
     QAction* cutAct;
     QAction* pasteAct;
 
-
     QString currentFile;
-
 };
