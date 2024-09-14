@@ -2,19 +2,24 @@
 #include <QSaveFile>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <qevent.h>
+#include <qtextstream.h>
 
 SimpleTextEditor::SimpleTextEditor(QWidget* parent)
-    : QMainWindow(parent)
+    : QMainWindow(parent), isUntitled(true), isModified(false)
 {
     ui.setupUi(this);
     setupLayout();
     createActions();
     createMenus();
+
+    // Connect textChanged signal to keep track of modifications.
+    connect(textEdit, &QTextEdit::textChanged, this, &SimpleTextEditor::documentWasModified);
+
+    setCurrentFile("");
 }
 
-SimpleTextEditor::~SimpleTextEditor()
-{
-}
+SimpleTextEditor::~SimpleTextEditor() = default;
 
 void SimpleTextEditor::setupLayout()
 {
@@ -26,7 +31,6 @@ void SimpleTextEditor::setupLayout()
 
     layout->addWidget(textEdit);
 
-    textEdit->setPlaceholderText("Hello World");
 }
 
 void SimpleTextEditor::createActions()
@@ -82,92 +86,155 @@ void SimpleTextEditor::createMenus()
 
 void SimpleTextEditor::newFile()
 {
-    textEdit->clear();
-    currentFile.clear();
+    if (maybeSave()) {
+        textEdit->clear();
+        setCurrentFile("");
+    }
+
 }
 
 void SimpleTextEditor::openFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), QString(),
-        tr("Text Files (*.txt);;All Files (*)"));
+    if (maybeSave()) {
+        QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"), QString(),
+            tr("Text Files (*.txt);;All Files (*)"));
 
-    if (!fileName.isEmpty())
-    {
-        openFromFile(fileName);
+        if (!fileName.isEmpty())
+        {
+            openFromFile(fileName);
+        }
     }
 }
 
-void SimpleTextEditor::openFromFile(const QString& fileName)
+bool SimpleTextEditor::openFromFile(const QString& fileName)
 {
-    if (!QFile::exists(fileName)) {
-        return;
-    }
 
     QFile file(fileName);
 
-    if (file.open(QFile::ReadOnly | QFile::Text))
+    if (!file.open(QFile::ReadOnly | QFile::Text))
     {
-        QTextStream in(&file);
-        in.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
-        textEdit->setPlainText(in.readAll());
-        currentFile = fileName;
+        QMessageBox::warning(this, tr("SimpleTextEditor"),
+            tr("Cannot read file %1: \n%2.")
+            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+
+        return false;
+
     }
-    else
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to open the file."));
-    }
+
+    QTextStream in(&file);
+    in.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
+    textEdit->setPlainText(in.readAll());
+
+    setCurrentFile(fileName);
+    return true;
 }
 
-void SimpleTextEditor::saveFile()
+bool SimpleTextEditor::saveFile()
 {
-    if (currentFile.isEmpty())
+    if (isUntitled)
     {
         // No current file; so behave like "Save as"
-        saveFileAs();
+        return saveFileAs();
     }
     else
     {
         // Save to current file without changing currentFile (since we didn't switch files)
-        saveToFile(currentFile);
+        return saveToFile(currentFile);
     }
 }
 
-void SimpleTextEditor::saveFileAs()
+bool SimpleTextEditor::saveFileAs()
 {
     QString fileName = QFileDialog::getSaveFileName(this, tr("Save As"), QString(),
         tr("Text Files (*.txt);;All Files (*)"));
 
-    if (!fileName.isEmpty())
+    // User didn't give a filename.
+    if (fileName.isEmpty())
     {
-        currentFile = fileName;
-        saveToFile(fileName);
+        return false;
+    }
 
+    return saveToFile(fileName);
+}
+
+bool SimpleTextEditor::saveToFile(const QString& fileName)
+{
+    QSaveFile file(fileName);
+    if (!file.open(QFile::WriteOnly | QFile::Text))
+    {
+        QMessageBox::warning(this, tr("SimpleTextEditor"),
+            tr("Cannot write file %1: \n%2.")
+            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+
+        return false;
+    }
+
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
+    out << textEdit->toPlainText();
+
+    if (!file.commit())
+    {
+        QMessageBox::warning(this, tr("SimpleTextEditor"),
+            tr("Cannot write file %1:\n%2.")
+            .arg(QDir::toNativeSeparators(fileName), file.errorString()));
+        return false;
+    }
+
+    // We have recognized a valid file and can write to it without problems.
+    setCurrentFile(fileName);
+    statusBar()->showMessage(tr("File saved"), 5000);
+
+    return true;
+
+}
+
+void SimpleTextEditor::closeEvent(QCloseEvent* event)
+{
+    if (maybeSave()) {
+        event->accept();
+    }
+    else {
+        event->ignore();
     }
 }
 
-void SimpleTextEditor::saveToFile(const QString& fileName)
+void SimpleTextEditor::documentWasModified()
 {
+    isModified = true;
+    setWindowModified(true);
+}
 
-    if (!QFile::exists(fileName)) {
-        return;
+bool SimpleTextEditor::maybeSave()
+{
+    if (!isModified) return true;
+
+    const QMessageBox::StandardButton ret = 
+        QMessageBox::warning(this, tr("SimpleTextEditor"),
+        tr("The document has been modified. \n"
+            "Do you want to save your changes?"),
+        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
+
+    switch (ret) {
+
+    case QMessageBox::Save:
+        return saveFile();
+    case QMessageBox::Cancel:
+        return false;
+    default:
+        break;
     }
 
-    QSaveFile file(fileName);
-    if (file.open(QFile::WriteOnly | QFile::Text))
-    {
-        QTextStream out(&file);
-        out.setEncoding(QStringConverter::Utf8);  // Set encoding to UTF-8
-        out << textEdit->toPlainText();
+    return true;
+}
 
-        if (!file.commit())
-        {
-            QMessageBox::critical(this, tr("Error"), tr("Failed to save the file."));
-        }
-    }
-    else
-    {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to open the file for writing."));
-    }
+void SimpleTextEditor::setCurrentFile(const QString& fileName)
+{
+    currentFile = fileName;
+    isUntitled = fileName.isEmpty();
+    isModified = false;
+    setWindowModified(false);
+    setWindowTitle(tr("%1[*] - %2").arg(isUntitled ? "untitled" : QFileInfo(currentFile).fileName(), tr("SimpleTextEditor")));
 }
 
 void SimpleTextEditor::copyText()

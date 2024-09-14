@@ -18,8 +18,8 @@ public:
     void newFile();
 
     // Core functionality methods (business logic)
-    void saveToFile(const QString& fileName);
-    void openFromFile(const QString& fileName);
+    bool saveToFile(const QString& fileName);
+    bool openFromFile(const QString& fileName);
 
     // Getter for textEdit (for testing purposes)
     QTextEdit* getTextEdit() const { return textEdit; }
@@ -27,17 +27,27 @@ public:
 public slots:
     // Slots for UI interactions
     void openFile();       // Opens file dialog and calls openFromFile
-    void saveFile();       // Saves to current file or opens save dialog
-    void saveFileAs();     // Opens save dialog and calls saveToFile
+    bool saveFile();       // Saves to current file or opens save dialog
+    bool saveFileAs();     // Opens save dialog and calls saveToFile
 
     void copyText();
     void cutText();
     void pasteText();
 
+protected:
+    // Override the close event so we can ask user to confirm unsaved changes.
+    void closeEvent(QCloseEvent* event) override;
+
+private slots:
+    void documentWasModified();
+
 private:
     void createActions();
     void createMenus();
     void setupLayout();
+
+    bool maybeSave();
+    void setCurrentFile(const QString& filename);
 
     Ui::SimpleTextEditorClass ui;
 
@@ -57,4 +67,8 @@ private:
     QAction* pasteAct;
 
     QString currentFile;
+
+    // File status flags
+    bool isUntitled;
+    bool isModified;
 };
