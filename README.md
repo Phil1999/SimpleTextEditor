@@ -16,6 +16,7 @@ A lightweight, Qt-based text editor with basic file operations and a clean inter
 - Qt 5.15 or later
 - C++17 compatible compiler
 - Visual Studio 2019 or later (for Windows development)
+- Package manager of choice (I use vcpkg).
 
 ### Building the Project
 
